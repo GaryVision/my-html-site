@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>霍兰德职业与升学测评 - 国际原题双语版</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap');
+        body { font-family: 'Noto Sans SC', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        .transition-all { transition: all 0.3s ease; }
+        .hover-card-shadow:hover { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); transform: translateY(-2px); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo, useEffect } = React;
+
+        // --- 核心数据库：职业、专业、学信网分析 ---
+        const CAREER_MAP = {
+            R: {
+                name: "现实型", en: "Realistic", color: "#e11d48",
+                analysis: "现实型 (Realistic) 倾向的人通常喜欢使用工具、机器或与动植物打交道的工作。他们倾向于通过实际操作和物理行动来解决问题，更喜欢具体的、有形的结果，而不是抽象的理论。在当今的中国市场，这类能力在先进制造、工程基础设施、现代农业以及新能源硬件等领域有着不可替代的价值。",
+                chsi: {
+                    majors: "机械工程 / 电气工程及其自动化 / 交通运输 / 材料科学与工程",
+                    analysis: "根据学信网及高等教育就业数据，理工科与实体制造业相关专业需求稳定。大专及高职层次主要面向一线设备操作与维护；本科层次侧重系统应用与设计；研究生层次则深入核心技术研发与工艺突破。",
+                    link: "https://gaokao.chsi.com.cn/zyk/pub/zytj/"
+                },
+                jobs: [
+                    {n: "数控机床操作与维护技师", apr: "6k-12k", gender: "男85% 女15%", edu: "大专/高职", age: "20-40", link: "https://www.zhipin.com/web/geek/job?query=数控操作"},
+                    {n: "汽车测试与标定工程师", apr: "10k-20k", gender: "男80% 女20%", edu: "本科", age: "22-35", link: "https://www.zhipin.com/web/geek/job?query=汽车测试工程师"},
+                    {n: "电气自动化系统工程师", apr: "15k-30k", gender: "男75% 女25%", edu: "本科/硕士", age: "25-45", link: "https://www.zhipin.com/web/geek/job?query=电气自动化工程师"},
+                    {n: "智能制造产线规划专家", apr: "25k-50k", gender: "男70% 女30%", edu: "硕士", age: "28-45", link: "https://www.zhipin.com/web/geek/job?query=智能制造规划"},
+                    {n: "新型工程材料研发科学家", apr: "30k-60k", gender: "男65% 女35%", edu: "博士", age: "30-55", link: "https://www.zhipin.com/web/geek/job?query=材料研发科学家"}
+                ]
+            },
+            I: {
+                name: "研究型", en: "Investigative", color: "#2563eb",
+                analysis: "研究型 (Investigative) 倾向的人喜欢观察、学习、分析、评估和解决问题。他们享受智力挑战，对科学、数学或技术领域的复杂现象充满好奇。他们更倾向于独立工作，通过逻辑和数据来得出结论。在科技创新驱动的环境下，他们是基础科学和高新技术研发的核心力量。",
+                chsi: {
+                    majors: "计算机科学与技术 / 临床医学 / 统计学 / 生物科学",
+                    analysis: "学信网数据显示，研究型专业通常伴随较高的学历门槛，呈现明显的考研导向。本科毕业生多从事基础技术或数据处理支持；进入核心研发、医疗临床或高校智库，硕士及博士学历几乎成为刚性要求。",
+                    link: "https://yz.chsi.com.cn/zyk/"
+                },
+                jobs: [
+                    {n: "实验室技术员/理化检验员", apr: "5k-10k", gender: "女55% 男45%", edu: "大专/本科", age: "22-35", link: "https://www.zhipin.com/web/geek/job?query=理化检验员"},
+                    {n: "数据分析师", apr: "12k-25k", gender: "男60% 女40%", edu: "本科", age: "22-35", link: "https://www.zhipin.com/web/geek/job?query=数据分析师"},
+                    {n: "医药临床研究员 (CRA)", apr: "15k-30k", gender: "女60% 男40%", edu: "硕士", age: "25-40", link: "https://www.zhipin.com/web/geek/job?query=CRA"},
+                    {n: "人工智能大模型算法工程师", apr: "30k-70k", gender: "男75% 女25%", edu: "硕士/博士", age: "26-45", link: "https://www.zhipin.com/web/geek/job?query=大模型算法"},
+                    {n: "前沿基础科学(如量子/生化)研究员", apr: "35k-80k", gender: "男65% 女35%", edu: "博士/博士后", age: "30-55", link: "https://www.zhipin.com/web/geek/job?query=基础科研"}
+                ]
+            },
+            A: {
+                name: "艺术型", en: "Artistic", color: "#d97706",
+                analysis: "艺术型 (Artistic) 倾向的人看重直觉、创造力和想象力。他们喜欢在非结构化的环境中工作，通过文字、色彩、声音或形态来表达自我和创造新的美学体验。他们往往对机械化的常规任务感到厌倦。在数字媒体、文创产业和体验经济中，他们的创造力是核心的产品附加值。",
+                chsi: {
+                    majors: "视觉传达设计 / 广播电视编导 / 汉语言文学 / 建筑学",
+                    analysis: "根据阳光高考平台专业满意度调查，艺术人文类专业的就业面较宽，但两极分化严重。相比于传统学历背景，市场雇主更看重应聘者的个人作品集 (Portfolio)、实战项目经验以及对大众审美趋势的敏锐捕捉能力。",
+                    link: "https://gaokao.chsi.com.cn/zyk/pub/zytj/"
+                },
+                jobs: [
+                    {n: "新媒体内容排版与视频剪辑", apr: "6k-12k", gender: "女70% 男30%", edu: "大专/本科", age: "20-30", link: "https://www.zhipin.com/web/geek/job?query=视频剪辑"},
+                    {n: "平面与UI视觉设计师", apr: "10k-20k", gender: "女65% 男35%", edu: "本科", age: "22-35", link: "https://www.zhipin.com/web/geek/job?query=UI设计师"},
+                    {n: "商业空间/室内主案设计师", apr: "15k-35k", gender: "男55% 女45%", edu: "本科", age: "25-45", link: "https://www.zhipin.com/web/geek/job?query=主案设计师"},
+                    {n: "游戏美术指导/视效导演", apr: "25k-55k", gender: "男60% 女40%", edu: "本科/硕士", age: "28-45", link: "https://www.zhipin.com/web/geek/job?query=游戏美术指导"},
+                    {n: "大型文旅项目总策划/总导演", apr: "35k-80k", gender: "均等", edu: "硕士", age: "35-55", link: "https://www.zhipin.com/web/geek/job?query=文旅总策划"}
+                ]
+            },
+            S: {
+                name: "社会型", en: "Social", color: "#059669",
+                analysis: "社会型 (Social) 倾向的人喜欢与人合作，致力于帮助、启发、教育或治愈他人。他们通常具有较强的同理心、沟通能力和倾听技巧。他们更看重人际关系的和谐与社会价值的实现。在教育培训、医疗健康、社会福利和人力资源等服务型社会支柱行业中，他们发挥着关键的纽带作用。",
+                chsi: {
+                    majors: "教育学 / 护理学 / 心理学 / 社会工作",
+                    analysis: "学信网报告显示，随着社会对医疗健康及高质量教育的需求增长，社会服务类专业就业率保持平稳。基础教育与常规护理以专科/本科为主；而临床心理学、高校教育及高级康复治疗等领域，通常要求硕士及以上学历和相关执业资格。",
+                    link: "https://yz.chsi.com.cn/zyk/"
+                },
+                jobs: [
+                    {n: "幼儿教育师/社区社工", apr: "5k-9k", gender: "女90% 男10%", edu: "大专/本科", age: "20-40", link: "https://www.zhipin.com/web/geek/job?query=社工"},
+                    {n: "中小学学科教师", apr: "7k-15k", gender: "女75% 男25%", edu: "本科/硕士", age: "22-45", link: "https://www.zhipin.com/web/geek/job?query=学科教师"},
+                    {n: "企业人力资源(HR)BP", apr: "12k-25k", gender: "女70% 男30%", edu: "本科", age: "24-40", link: "https://www.zhipin.com/web/geek/job?query=HRBP"},
+                    {n: "心理咨询师/康复治疗专家", apr: "15k-35k", gender: "女65% 男35%", edu: "硕士", age: "28-55", link: "https://www.zhipin.com/web/geek/job?query=心理咨询师"},
+                    {n: "大型教育/医疗机构运营总监", apr: "30k-60k", gender: "均等", edu: "硕士", age: "35-55", link: "https://www.zhipin.com/web/geek/job?query=医疗运营总监"}
+                ]
+            },
+            E: {
+                name: "企业型", en: "Enterprising", color: "#ea580c",
+                analysis: "企业型 (Enterprising) 倾向的人喜欢领导、说服他人或推销观点及产品，以实现组织目标或获得经济回报。他们通常自信、有抱负且充满活力，愿意承担风险并快速做出决策。在商业环境中，他们往往是业务开拓、市场营销、创业投资以及企业高层管理的核心驱动者。",
+                chsi: {
+                    majors: "工商管理 / 金融学 / 国际经济与贸易 / 市场营销",
+                    analysis: "商科及经管类专业在学信网的就业去向呈现较强的竞争性。基础销售或客服岗位学历门槛较低（专科/本科），但若想进入高端金融机构（投行/PE）、大型企业战略投资部或高级管理层，名校硕士背景及丰富的商业实战经验至关重要。",
+                    link: "https://gaokao.chsi.com.cn/zyk/pub/zytj/"
+                },
+                jobs: [
+                    {n: "渠道销售/业务拓展(BD)专员", apr: "6k-15k", gender: "男60% 女40%", edu: "大专/本科", age: "20-35", link: "https://www.zhipin.com/web/geek/job?query=BD专员"},
+                    {n: "大客户(KA)销售经理", apr: "12k-30k", gender: "男65% 女35%", edu: "本科", age: "24-40", link: "https://www.zhipin.com/web/geek/job?query=KA大客户"},
+                    {n: "企业市场营销总监 (CMO)", apr: "25k-60k", gender: "均等", edu: "本科/硕士", age: "28-45", link: "https://www.zhipin.com/web/geek/job?query=营销总监"},
+                    {n: "私募/风险投资(VC)经理", apr: "30k-80k", gender: "男70% 女30%", edu: "硕士(名校)", age: "26-45", link: "https://www.zhipin.com/web/geek/job?query=投资经理"},
+                    {n: "公司首席执行官/企业创始人", apr: "收益不设限", gender: "男75% 女25%", edu: "本科及以上", age: "30-60", link: "https://www.zhipin.com/web/geek/job?query=CEO"}
+                ]
+            },
+            C: {
+                name: "常规型", en: "Conventional", color: "#7c3aed",
+                analysis: "常规型 (Conventional) 倾向的人喜欢按照明确的规则和流程开展工作。他们注重细节、准确性和条理性，擅长组织数据、记录信息和维护标准操作程序。他们通常严谨、可靠，在财税审计、合规审查、物流管理、数据管理等需要高度精确性和规则遵循的领域中不可或缺。",
+                chsi: {
+                    majors: "会计学 / 审计学 / 物流管理 / 法学",
+                    analysis: "根据高等教育就业趋势，传统的初级簿记、录入等常规专业岗位正面临自动化的挑战。当前市场更青睐具备“专业规则+数字化工具”复合能力的人才。本科侧重掌握实务操作与法规，研究生则迈向高级审计、税务筹划及合规风控等高阶领域。",
+                    link: "https://gaokao.chsi.com.cn/zyk/pub/zytj/"
+                },
+                jobs: [
+                    {n: "档案管理员/单证录入员", apr: "5k-8k", gender: "女75% 男25%", edu: "大专", age: "20-40", link: "https://www.zhipin.com/web/geek/job?query=单证员"},
+                    {n: "出纳与基础会计", apr: "6k-12k", gender: "女80% 男20%", edu: "本科", age: "22-35", link: "https://www.zhipin.com/web/geek/job?query=会计"},
+                    {n: "高级财务分析师 (FP&A)", apr: "15k-30k", gender: "女60% 男40%", edu: "本科/硕士", age: "25-45", link: "https://www.zhipin.com/web/geek/job?query=FPA"},
+                    {n: "企业合规与法务审计师", apr: "20k-45k", gender: "均等", edu: "硕士", age: "26-45", link: "https://www.zhipin.com/web/geek/job?query=合规审计"},
+                    {n: "注册会计师(CPA)/精算师", apr: "30k-70k+", gender: "男55% 女45%", edu: "本科及以上", age: "28-50", link: "https://www.zhipin.com/web/geek/job?query=精算师"}
+                ]
+            }
+        };
+
+        // O*NET Interest Profiler 官方原题直译，语言准确朴素
+        const QUESTIONS = [
+            // R
+            {cn: "打造厨房橱柜", en: "Build kitchen cabinets"},
+            {cn: "铺设砖块或瓷砖", en: "Lay brick or tile"},
+            {cn: "修理家用电器", en: "Repair household appliances"},
+            {cn: "驾驶卡车或拖拉机", en: "Drive a truck or tractor"},
+            {cn: "在生产线上操作机器", en: "Operate a machine on a production line"},
+            {cn: "修理和安装锁具", en: "Repair and install locks"},
+            {cn: "安装并操作机器来制造产品", en: "Set up and operate machines to make products"},
+            {cn: "组装电子零件", en: "Assemble electronic parts"},
+            {cn: "在装运前测试零件的质量", en: "Test the quality of parts before shipment"},
+            {cn: "修理汽车", en: "Repair an automobile"},
+            // I
+            {cn: "开发新的医疗方法或程序", en: "Develop a new medical treatment or procedure"},
+            {cn: "进行生物学研究", en: "Conduct biological research"},
+            {cn: "研究人体的结构", en: "Study the structure of the human body"},
+            {cn: "研究动物行为", en: "Study animal behavior"},
+            {cn: "对动植物进行研究", en: "Do research on plants or animals"},
+            {cn: "开发更好的天气预测新方法", en: "Develop a new way to better predict the weather"},
+            {cn: "在生物实验室工作", en: "Work in a biology lab"},
+            {cn: "发明糖的替代品", en: "Invent a replacement for sugar"},
+            {cn: "研究鲸鱼和其他海洋生物", en: "Study whales and other types of marine life"},
+            {cn: "调查火灾的原因", en: "Investigate the cause of a fire"},
+            // A
+            {cn: "撰写书籍或剧本", en: "Write books or plays"},
+            {cn: "演奏乐器", en: "Play a musical instrument"},
+            {cn: "作曲或编曲", en: "Compose or arrange music"},
+            {cn: "画画", en: "Draw pictures"},
+            {cn: "为电影制作特效", en: "Create special effects for movies"},
+            {cn: "为戏剧绘制布景", en: "Paint sets for plays"},
+            {cn: "为电影或电视节目撰写剧本", en: "Write scripts for movies or television shows"},
+            {cn: "表演爵士舞或踢踏舞", en: "Perform jazz or tap dance"},
+            {cn: "在乐队中唱歌", en: "Sing in a band"},
+            {cn: "剪辑电影", en: "Edit movies"},
+            // S
+            {cn: "教导个人日常锻炼方法", en: "Teach an individual an exercise routine"},
+            {cn: "帮助人们解决个人或情感问题", en: "Help people with personal or emotional problems"},
+            {cn: "为人们提供职业指导", en: "Give career guidance to people"},
+            {cn: "进行康复治疗", en: "Perform rehabilitation therapy"},
+            {cn: "在非营利组织做志愿工作", en: "Do volunteer work at a non-profit organization"},
+            {cn: "教孩子们阅读", en: "Teach children how to read"},
+            {cn: "教授高中课程", en: "Teach a high-school class"},
+            {cn: "帮助老年人进行日常活动", en: "Help elderly people with their daily activities"},
+            {cn: "向听力障碍者教授手语", en: "Teach sign language to people with hearing disabilities"},
+            {cn: "帮助有毒品或酒精成瘾问题的人", en: "Help people who have problems with drugs or alcohol"},
+            // E
+            {cn: "买卖股票和债券", en: "Buy and sell stocks and bonds"},
+            {cn: "管理零售店", en: "Manage a retail store"},
+            {cn: "经营美容院或发廊", en: "Operate a beauty salon or hair salon"},
+            {cn: "管理大公司内的一个部门", en: "Manage a department within a large company"},
+            {cn: "创办你自己的企业", en: "Start your own business"},
+            {cn: "谈判商业合同", en: "Negotiate business contracts"},
+            {cn: "在诉讼中代表客户", en: "Represent a client in a lawsuit"},
+            {cn: "营销一个新系列的服装", en: "Market a new line of clothing"},
+            {cn: "销售房屋或其他房地产", en: "Sell houses or other real estate"},
+            {cn: "经营一家玩具店", en: "Run a toy store"},
+            // C
+            {cn: "使用计算机软件开发电子表格", en: "Develop a spreadsheet using computer software"},
+            {cn: "校对记录或表格", en: "Proofread records or forms"},
+            {cn: "在大型网络中的计算机上安装软件", en: "Install software across computers on a large network"},
+            {cn: "计算员工工资", en: "Calculate the wages of employees"},
+            {cn: "组织和安排办公室会议", en: "Organize and schedule office meetings"},
+            {cn: "保持库存记录", en: "Keep inventory records"},
+            {cn: "建立一个保存记录的系统", en: "Set up a system for keeping records"},
+            {cn: "维护员工记录", en: "Maintain employee records"},
+            {cn: "计算并记录统计数据", en: "Compute and record statistical data"},
+            {cn: "投递和分发邮件", en: "Route and distribute mail"}
+        ];
+
+        const App = () => {
+            const [view, setView] = useState('home');
+            const [qIdx, setQIdx] = useState(0);
+            const [answers, setAnswers] = useState(new Array(60).fill(2));
+            const [timeElapsed, setTimeElapsed] = useState(0);
+            const [isRunning, setIsRunning] = useState(false);
+
+            // 计时器逻辑
+            useEffect(() => {
+                let interval;
+                if (isRunning) {
+                    interval = setInterval(() => {
+                        setTimeElapsed(prev => prev + 1);
+                    }, 1000);
+                }
+                return () => clearInterval(interval);
+            }, [isRunning]);
+
+            const formatTime = (seconds) => {
+                const m = Math.floor(seconds / 60);
+                const s = seconds % 60;
+                return `${m}分 ${s.toString().padStart(2, '0')}秒`;
+            };
+
+            const startTest = () => {
+                setView('test');
+                setIsRunning(true);
+            };
+
+            const handleSelect = (val) => {
+                const newAns = [...answers];
+                newAns[qIdx] = val;
+                setAnswers(newAns);
+                
+                if (qIdx < 59) {
+                    setQIdx(qIdx + 1);
+                } else {
+                    setIsRunning(false); // 停止计时
+                    window.scrollTo(0,0);
+                    setView('result');
+                }
+            };
+
+            const scores = useMemo(() => {
+                const s = { R:0, I:0, A:0, S:0, E:0, C:0 };
+                const order = ['R','I','A','S','E','C'];
+                answers.forEach((v, i) => {
+                    s[order[Math.floor(i / 10)]] += v;
+                });
+                return s;
+            }, [answers]);
+
+            const top3 = Object.entries(scores).sort((a,b)=>b[1]-a[1]).slice(0,3);
+
+            if (view === 'home') return (
+                <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50 text-slate-800">
+                    <div className="text-center max-w-3xl">
+                        <div className="inline-block bg-blue-100 text-blue-700 px-4 py-1 rounded-full text-xs font-semibold tracking-wider mb-6 border border-blue-200">
+                            基于 O*NET 国际权威题库
+                        </div>
+                        <h1 className="text-4xl md:text-5xl font-bold mb-4 text-slate-900">霍兰德职业兴趣测试</h1>
+                        <p className="text-slate-500 mb-10 text-sm">Holland Occupational Themes (RIASEC)</p>
+                        
+                        <div className="bg-white p-8 md:p-10 rounded-2xl text-left mb-10 border border-slate-200 shadow-sm">
+                            <h3 className="font-semibold mb-6 text-slate-800 text-lg flex items-center gap-2 border-b border-slate-100 pb-3">
+                                测试说明
+                            </h3>
+                            <div className="space-y-4 text-sm text-slate-600">
+                                <p>1. 本测试包含 <strong>60道题目</strong>，采用直译的国际通用测试题（原题附英文对比）。</p>
+                                <p>2. 请根据您的<strong>真实喜好</strong>作答，而不是根据您认为自己是否擅长或是否能赚多少钱来判断。</p>
+                                <p>3. 测试报告将结合中国大陆市场的真实情况（附带学信网专业参考与BOSS直聘职位链接）为您提供5个梯度的职业建议。</p>
+                            </div>
+                        </div>
+                        <button onClick={startTest} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold text-lg transition-all active:scale-95 shadow-md">
+                            开始测试
+                        </button>
+                    </div>
+                </div>
+            );
+
+            if (view === 'test') {
+                const currentQ = QUESTIONS[qIdx];
+                const types = ['R','I','A','S','E','C'];
+                const curType = types[Math.floor(qIdx / 10)];
+                const subProgress = (qIdx % 10) + 1; // 当前分类下第几题
+                const totalProgress = Math.round(((qIdx + 1) / 60) * 100);
+
+                return (
+                    <div className="min-h-screen flex flex-col p-6 max-w-3xl mx-auto bg-white shadow-sm border-x border-slate-100">
+                        {/* 顶部状态栏 */}
+                        <div className="flex justify-between items-center mt-4 mb-12 border-b border-slate-100 pb-6">
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-lg" style={{backgroundColor: CAREER_MAP[curType].color}}>
+                                    {curType}
+                                </div>
+                                <div>
+                                    <div className="font-bold text-slate-800">{CAREER_MAP[curType].name}题目</div>
+                                    <div className="text-xs text-slate-500 font-medium">类目进度: <span style={{color: CAREER_MAP[curType].color}}>{subProgress} / 10</span></div>
+                                </div>
+                            </div>
+                            
+                            <div className="flex flex-col items-end gap-2">
+                                <div className="flex items-center gap-2 text-sm font-semibold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200">
+                                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    {formatTime(timeElapsed)}
+                                </div>
+                                <div className="text-xs font-semibold text-slate-400">总进度: {qIdx + 1}/60</div>
+                            </div>
+                        </div>
+
+                        {/* 进度条 */}
+                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden mb-12">
+                            <div className="h-full transition-all duration-300 ease-out" style={{width: `${totalProgress}%`, backgroundColor: CAREER_MAP[curType].color}}></div>
+                        </div>
+
+                        {/* 题目展示区域 */}
+                        <div className="flex-1 flex flex-col justify-center mb-16 px-4">
+                            <h2 className="text-2xl md:text-3xl font-bold text-slate-800 mb-3 text-center leading-snug">
+                                {currentQ.cn}
+                            </h2>
+                            <p className="text-base md:text-lg font-normal text-slate-400 text-center">
+                                {currentQ.en}
+                            </p>
+                        </div>
+
+                        {/* 选项按钮 */}
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-10">
+                            {[
+                                {l:'非常喜欢', e:'Strongly Like', v:4, bg:'bg-green-500', hover:'hover:bg-green-600'},
+                                {l:'喜欢', e:'Like', v:3, bg:'bg-emerald-400', hover:'hover:bg-emerald-500'},
+                                {l:'中立 / 无感', e:'Neutral', v:2, bg:'bg-slate-300', text:'text-slate-700', hover:'hover:bg-slate-400'},
+                                {l:'不喜欢', e:'Dislike', v:1, bg:'bg-orange-400', hover:'hover:bg-orange-500'},
+                                {l:'非常不喜欢', e:'Strongly Dislike', v:0, bg:'bg-red-500', hover:'hover:bg-red-600'}
+                            ].map(opt => (
+                                <button 
+                                    key={opt.l} 
+                                    onClick={()=>handleSelect(opt.v)} 
+                                    className={`${opt.bg} ${opt.hover} ${opt.text || 'text-white'} py-4 rounded-xl transition-all flex flex-col items-center justify-center font-semibold shadow-sm active:scale-95`}
+                                >
+                                    <span className="text-base mb-1">{opt.l}</span>
+                                </button>
+                            ))}
+                        </div>
+                        
+                        <div className="flex justify-center mt-auto pb-4">
+                            <button onClick={()=>qIdx > 0 && setQIdx(qIdx-1)} className={`text-sm font-medium px-6 py-2 rounded-full transition-colors ${qIdx === 0 ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`} disabled={qIdx === 0}>
+                                ← 返回上一题
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen p-4 md:p-10 max-w-6xl mx-auto transition-all">
+                    {/* Header */}
+                    <header className="text-center mb-16 bg-white p-10 rounded-3xl shadow-sm border border-slate-200">
+                        <div className="text-sm font-semibold text-slate-500 mb-2 border border-slate-200 inline-block px-3 py-1 rounded-full bg-slate-50">
+                            测试用时：{formatTime(timeElapsed)}
+                        </div>
+                        <h2 className="text-slate-900 text-2xl md:text-3xl font-bold mb-6">您的职业兴趣代码 (Holland Code)</h2>
+                        <div className="flex justify-center items-end gap-3 md:gap-6 mb-6">
+                            {top3.map(([k], index) => (
+                                <div key={k} className="flex flex-col items-center">
+                                    <span className={`font-bold ${index === 0 ? 'text-7xl md:text-8xl' : 'text-5xl md:text-6xl opacity-70'}`} style={{color: CAREER_MAP[k].color}}>{k}</span>
+                                    {index === 0 && <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded mt-2">主要倾向</span>}
+                                </div>
+                            ))}
+                        </div>
+                    </header>
+
+                    {/* Results */}
+                    <div className="space-y-12">
+                        {top3.map(([k], i) => (
+                            <div key={k} className="bg-white rounded-3xl p-6 md:p-10 shadow-sm border border-slate-200">
+                                
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b border-slate-100 pb-6">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-2xl" style={{backgroundColor: CAREER_MAP[k].color}}>
+                                            {k}
+                                        </div>
+                                        <div>
+                                            <h3 className="text-2xl font-bold text-slate-800">{CAREER_MAP[k].name}</h3>
+                                            <div className="text-xs text-slate-500 font-medium uppercase">{CAREER_MAP[k].en}</div>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-xs text-slate-400 font-medium mb-1">倾向得分 (0-40)</div>
+                                        <div className="text-xl font-bold text-slate-700">{scores[k]}</div>
+                                    </div>
+                                </div>
+                                
+                                <div className="grid lg:grid-cols-2 gap-8 mb-10">
+                                    <div>
+                                        <h4 className="font-bold text-slate-800 mb-3 text-base flex items-center gap-2">
+                                            <span className="w-1.5 h-4 rounded-full" style={{backgroundColor: CAREER_MAP[k].color}}></span>
+                                            性格特征与职业环境
+                                        </h4>
+                                        <p className="text-slate-600 leading-relaxed text-sm text-justify">
+                                            {CAREER_MAP[k].analysis}
+                                        </p>
+                                    </div>
+                                    
+                                    <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                                🎓 学信网 (CHSI) 专业参考
+                                            </h4>
+                                            <a href={CAREER_MAP[k].chsi.link} target="_blank" className="text-[10px] bg-white text-slate-600 border border-slate-300 px-2.5 py-1 rounded hover:bg-slate-100 transition-colors">官方数据查询↗</a>
+                                        </div>
+                                        <div className="mb-3">
+                                            <div className="text-xs font-semibold text-slate-500 mb-1">对口专业示例</div>
+                                            <div className="text-sm font-semibold text-slate-700">{CAREER_MAP[k].chsi.majors}</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-xs font-semibold text-slate-500 mb-1">就业现状分析</div>
+                                            <p className="text-slate-600 text-xs leading-relaxed text-justify">
+                                                {CAREER_MAP[k].chsi.analysis}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-slate-800 mb-4 text-base flex items-center gap-2">
+                                        <span className="w-1.5 h-4 rounded-full" style={{backgroundColor: CAREER_MAP[k].color}}></span>
+                                        典型职业路径推荐 (5类学历梯度)
+                                    </h4>
+                                    <div className="overflow-x-auto no-scrollbar pb-2">
+                                        <div className="flex md:grid md:grid-cols-5 gap-3 min-w-max md:min-w-full">
+                                            {CAREER_MAP[k].jobs.map((job, jIdx) => (
+                                                <div key={job.n} className="w-56 md:w-auto bg-white border border-slate-200 rounded-xl p-4 hover-card-shadow transition-all flex flex-col justify-between">
+                                                    <div>
+                                                        <div className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded inline-block mb-2">
+                                                            {job.edu}
+                                                        </div>
+                                                        <h5 className="font-bold text-slate-800 text-sm mb-3 h-10">{job.n}</h5>
+                                                        
+                                                        <div className="space-y-2 mb-4">
+                                                            <div className="flex justify-between items-center text-xs">
+                                                                <span className="text-slate-500">主流月薪</span>
+                                                                <span className="font-semibold text-slate-700">{job.apr}</span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center text-xs">
+                                                                <span className="text-slate-500">年龄区间</span>
+                                                                <span className="text-slate-700">{job.age} 岁</span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center text-xs">
+                                                                <span className="text-slate-500">性别分布</span>
+                                                                <span className="text-slate-700">{job.gender}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <a href={job.link} target="_blank" className="block w-full text-center bg-slate-50 border border-slate-200 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors">
+                                                        BOSS直聘查询
+                                                    </a>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <footer className="mt-16 text-center">
+                        <button onClick={()=>window.location.reload()} className="px-8 py-3 bg-slate-800 text-white rounded-lg font-semibold text-sm hover:bg-slate-700 transition-colors">
+                            重新测试
+                        </button>
+                    </footer>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
