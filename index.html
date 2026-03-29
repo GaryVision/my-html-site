@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>霍兰德职业兴趣测试 v3.0</title>
+    <!-- 1. React 核心 -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- 2. Recharts 必需的依赖：PropTypes (修复 oneOfType 错误的关键) -->
+    <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+    <!-- 3. Recharts 图表库 -->
+    <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+    <!-- 4. 其他辅助库 -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700;900&display=swap');
+        body { font-family: 'Noto Sans SC', sans-serif; background-color: #f8fafc; }
+        .recharts-responsive-container { min-height: 350px; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo } = React;
+
+        // 安全获取 Recharts 组件
+        const RechartsObj = window.Recharts || {};
+        const { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } = RechartsObj;
+
+        // 1. 定義圖標與增強版分析數據
+        const Icons = {
+            Briefcase: ({ size=16 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>,
+            GraduationCap: ({ size=16 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>,
+            ChevronRight: ({ size=20 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>,
+            Zap: ({ size=16 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>,
+            MapPin: ({ className, size=32 }) => <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>,
+            Globe: ({ className, size=32 }) => <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>,
+            ChevronLeft: ({ size=18 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        };
+
+        // 1. 增强版维度数据库 (含 540-640 梯度、5 项推荐、冷门专业)
+        const DIMENSIONS = {
+            R: { 
+                name: "现实型", color: "#ef4444", 
+                analysis: "实干家。偏好工具操作。在当前'新质生产力'背景下，技术溢价极高。",
+                careers: [
+                    { n: "低空经济无人机运维", s: "18-35W", sex: "男 85%", age: "22-35", score: "620(北航/西工大)", niche: false },
+                    { n: "新能源三电系统研发", s: "20-45W", sex: "男 70%", age: "25-40", score: "600(华南理工)", niche: false },
+                    { n: "智能制造控制工程", s: "12-25W", sex: "男 80%", age: "23-45", score: "580(广东工业)", niche: false },
+                    { n: "工业机器人集成", s: "10-20W", sex: "男 90%", age: "22-50", score: "560(深圳职院)", niche: false },
+                    { n: "现代农业装备工程", s: "15-30W", sex: "均衡", age: "25-45", score: "540(华中农大)", niche: true }
+                ],
+                chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=智能制造工程",
+                boss: "https://www.zhipin.com/web/geek/job?query=机器人运维",
+                trends: [ {y:'2021',v:565}, {y:'2022',v:578}, {y:'2023',v:585}, {y:'2024',v:592}, {y:'2025',v:605} ]
+            },
+            I: { 
+                name: "研究型", color: "#3b82f6",
+                analysis: "思想家。在半导体、生物制药等'卡脖子'领域拥有极高门槛和长期回报。",
+                careers: [
+                    { n: "AI 算力架构师", s: "40-100W", sex: "男 75%", age: "25-35", score: "640(清华/哈工大)", niche: false },
+                    { n: "半导体工艺工程师", s: "25-50W", sex: "男 80%", age: "26-45", score: "620(成电/西电)", niche: false },
+                    { n: "生物信息分析师", s: "20-45W", sex: "均衡", age: "24-40", score: "600(中山大学)", niche: true },
+                    { n: "量子信息研究员", s: "35-80W", sex: "男 70%", age: "28-50", score: "580(南科大)", niche: true },
+                    { n: "新材料模拟计算", s: "15-30W", sex: "均衡", age: "25-45", score: "540(深大/中南)", niche: false }
+                ],
+                chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=人工智能",
+                boss: "https://www.zhipin.com/web/geek/job?query=算法工程师",
+                trends: [ {y:'2021',v:590}, {y:'2022',v:605}, {y:'2023',v:620}, {y:'2024',v:635}, {y:'2025',v:645} ]
+            },
+            A: { 
+                name: "艺术型", color: "#f59e0b",
+                analysis: "创造者。在 AIGC 浪潮下，具备技术落地能力的创意人才稀缺度倍增。",
+                careers: [
+                    { n: "AIGC 数字艺术总监", s: "35-70W", sex: "均衡", age: "24-38", score: "610(中传/国美)", niche: false },
+                    { n: "游戏技术美术 TA", s: "30-80W", sex: "男 60%", age: "23-40", score: "590(中传/北影)", niche: false },
+                    { n: "元宇宙场景设计师", s: "20-45W", sex: "均衡", age: "22-35", score: "570(江南大学)", niche: true },
+                    { n: "非遗数字化保护", s: "12-25W", sex: "女 65%", age: "25-50", score: "550(南艺/山艺)", niche: true },
+                    { n: "品牌视觉策展人", s: "15-35W", sex: "女 70%", age: "24-45", score: "540(广美/川美)", niche: false }
+                ],
+                chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=数字媒体艺术",
+                boss: "https://www.zhipin.com/web/geek/job?query=游戏美术",
+                trends: [ {y:'2021',v:540}, {y:'2022',v:552}, {y:'2023',v:568}, {y:'2024',v:580}, {y:'2025',v:595} ]
+            },
+            S: { 
+                name: "社会型", color: "#10b981",
+                analysis: "助人者。心理健康与老龄化需求爆发，专业服务人才缺口持续扩大。",
+                careers: [
+                    { n: "临床心理治疗师", s: "25-60W", sex: "女 65%", age: "28-50", score: "620(北大医学/北师大)", niche: false },
+                    { n: "康复医学专家", s: "20-45W", sex: "均衡", age: "26-55", score: "600(中山医/华西)", niche: false },
+                    { n: "特需教育规划师", s: "15-35W", sex: "女 80%", age: "24-45", score: "580(华东师大)", niche: true },
+                    { n: "银发经济顾问", s: "12-28W", sex: "均衡", age: "25-50", score: "560(首医大)", niche: true },
+                    { n: "企业 EAP 咨询师", s: "18-40W", sex: "女 70%", age: "26-45", score: "540(华中师大)", niche: false }
+                ],
+                chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=康复治疗学",
+                boss: "https://www.zhipin.com/web/geek/job?query=心理咨询师",
+                trends: [ {y:'2021',v:555}, {y:'2022',v:565}, {y:'2023',v:578}, {y:'2024',v:590}, {y:'2025',v:605} ]
+            },
+            E: { 
+                name: "企业型", color: "#f97316",
+                analysis: "领导者。跨境电商与数字化转型催生大量复合型管理岗位。",
+                careers: [
+                    { n: "跨境业务总经理", s: "50-200W+", sex: "均衡", age: "28-45", score: "630(清北/中欧)", niche: false },
+                    { n: "数字化转型顾问", s: "30-70W", sex: "均衡", age: "26-42", score: "610(复旦/交大)", niche: false },
+                    { n: "ESG 战略总监", s: "35-80W", sex: "女 55%", age: "28-48", score: "590(人大/央财)", niche: true },
+                    { n: "直播电商运营官", s: "20-50W", sex: "女 60%", age: "23-38", score: "570(浙传/深大)", niche: false },
+                    { n: "县域经济招商", s: "15-30W", sex: "均衡", age: "25-50", score: "540(中南财大)", niche: true }
+                ],
+                chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=工商管理",
+                boss: "https://www.zhipin.com/web/geek/job?query=跨境电商",
+                trends: [ {y:'2021',v:575}, {y:'2022',v:588}, {y:'2023',v:602}, {y:'2024',v:615}, {y:'2025',v:628} ]
+            },
+            C: { 
+                name: "常规型", color: "#8b5cf6",
+                analysis: "组织者。在合规趋严背景下，财税与数据管理人才价值凸显。",
+                careers: [
+                    { n: "IPO 合规审计官", s: "25-70W", sex: "均衡", age: "26-45", score: "610(两财一贸)", niche: false },
+                    { n: "税务筹划专家", s: "20-55W", sex: "均衡", age: "27-50", score: "590(中南财大)", niche: false },
+                    { n: "供应链精益管理", s: "15-35W", sex: "男 65%", age: "24-45", score: "570(北交大)", niche: false },
+                    { n: "数据治理分析师", s: "18-40W", sex: "均衡", age: "23-40", score: "560(电子科大)", niche: true },
+                    { n: "政务数据管理", s: "12-25W", sex: "均衡", age: "25-55", score: "540(华中师大)", niche: true }
+                ],
+                chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=审计学",
+                boss: "https://www.zhipin.com/web/geek/job?query=审计专员",
+                trends: [ {y:'2021',v:550}, {y:'2022',v:562}, {y:'2023',v:575}, {y:'2024',v:585}, {y:'2025',v:598} ]
+            }
+        };
+
+        const US_QUESTIONS = [
+            { id: 1, type: 'R', cn: "打造厨房橱柜", en: "Build kitchen cabinets" },
+            { id: 2, type: 'R', cn: "铺设砖块或瓷砖", en: "Lay brick or tile" },
+            { id: 3, type: 'R', cn: "修理家用电器", en: "Repair household appliances" },
+            { id: 4, type: 'R', cn: "驾驶卡车或拖拉机", en: "Drive a truck or tractor" },
+            { id: 5, type: 'R', cn: "在生产线上操作机器", en: "Operate a machine on a production line" },
+            { id: 6, type: 'R', cn: "修理和安装锁具", en: "Repair and install locks" },
+            { id: 7, type: 'R', cn: "安装并操作机器来制造产品", en: "Set up and operate machines to make products" },
+            { id: 8, type: 'R', cn: "组装电子零件", en: "Assemble electronic parts" },
+            { id: 9, type: 'R', cn: "在装运前测试零件的质量", en: "Test the quality of parts before shipment" },
+            { id: 10, type: 'R', cn: "修理汽车", en: "Repair an automobile" },
+            { id: 11, type: 'I', cn: "开发新的医疗方法", en: "Develop a new medical treatment" },
+            { id: 12, type: 'I', cn: "进行生物学研究", en: "Conduct biological research" },
+            { id: 13, type: 'I', cn: "研究人体的结构", en: "Study the structure of the human body" },
+            { id: 14, type: 'I', cn: "研究动物行为", en: "Study animal behavior" },
+            { id: 15, type: 'I', cn: "对动植物进行研究", en: "Do research on plants or animals" },
+            { id: 16, type: 'I', cn: "预测天气的新方法", en: "Better predict the weather" },
+            { id: 17, type: 'I', cn: "在生物实验室工作", en: "Work in a biology lab" },
+            { id: 18, type: 'I', cn: "发明糖的替代品", en: "Invent a replacement for sugar" },
+            { id: 19, type: 'I', cn: "研究海洋生物", en: "Study marine life" },
+            { id: 20, type: 'I', cn: "调查火灾原因", en: "Investigate the cause of a fire" },
+            { id: 21, type: 'A', cn: "撰写书籍或剧本", en: "Write books or plays" },
+            { id: 22, type: 'A', cn: "演奏乐器", en: "Play a musical instrument" },
+            { id: 23, type: 'A', cn: "作曲或编曲", en: "Compose or arrange music" },
+            { id: 24, type: 'A', cn: "画画", en: "Draw pictures" },
+            { id: 25, type: 'A', cn: "为电影制作特效", en: "Create special effects for movies" },
+            { id: 26, type: 'A', cn: "为戏剧绘制布景", en: "Paint sets for plays" },
+            { id: 27, type: 'A', cn: "撰写剧本", en: "Write scripts for shows" },
+            { id: 28, type: 'A', cn: "表演爵士舞或踢踏舞", en: "Perform jazz or tap dance" },
+            { id: 29, type: 'A', cn: "在乐队中唱歌", en: "Sing in a band" },
+            { id: 30, type: 'A', cn: "剪辑电影", en: "Edit movies" },
+            { id: 31, type: 'S', cn: "教导锻炼方法", en: "Teach exercise routine" },
+            { id: 32, type: 'S', cn: "帮助解决情感问题", en: "Help with emotional problems" },
+            { id: 33, type: 'S', cn: "提供职业指导", en: "Give career guidance" },
+            { id: 34, type: 'S', cn: "进行康复治疗", en: "Perform rehabilitation therapy" },
+            { id: 35, type: 'S', cn: "非营利组织做志愿", en: "Volunteer at non-profit" },
+            { id: 36, type: 'S', cn: "教孩子们阅读", en: "Teach children how to read" },
+            { id: 37, type: 'S', cn: "教授高中课程", en: "Teach a high-school class" },
+            { id: 38, type: 'S', cn: "帮助老年人活动", en: "Help elderly people" },
+            { id: 39, type: 'S', cn: "教授手语", en: "Teach sign language" },
+            { id: 40, type: 'S', cn: "帮助成瘾的人", en: "Help with addiction problems" },
+            { id: 41, type: 'E', cn: "买卖股票", en: "Buy and sell stocks" },
+            { id: 42, type: 'E', cn: "管理零售店", en: "Manage a retail store" },
+            { id: 43, type: 'E', cn: "经营美容院", en: "Operate a beauty salon" },
+            { id: 44, type: 'E', cn: "管理大公司部门", en: "Manage a department" },
+            { id: 45, type: 'E', cn: "创办企业", en: "Start your own business" },
+            { id: 46, type: 'E', cn: "谈判商业合同", en: "Negotiate business contracts" },
+            { id: 47, type: 'E', cn: "代表客户诉讼", en: "Represent a client in a lawsuit" },
+            { id: 48, type: 'E', cn: "营销新系服装", en: "Market a new line of clothing" },
+            { id: 49, type: 'E', cn: "销售房屋", en: "Sell real estate" },
+            { id: 50, type: 'E', cn: "经营玩具店", en: "Run a toy store" },
+            { id: 51, type: 'C', cn: "开发电子表格", en: "Develop a spreadsheet" },
+            { id: 52, type: 'C', cn: "校对记录", en: "Proofread records or forms" },
+            { id: 53, type: 'C', cn: "安装软件", en: "Install software across network" },
+            { id: 54, type: 'C', cn: "计算员工工资", en: "Calculate employee wages" },
+            { id: 55, type: 'C', cn: "组织会议", en: "Organize office meetings" },
+            { id: 56, type: 'C', cn: "保持库存记录", en: "Keep inventory records" },
+            { id: 57, type: 'C', cn: "建立记录系统", en: "Set up record system" },
+            { id: 58, type: 'C', cn: "维护员工记录", en: "Maintain employee records" },
+            { id: 59, type: 'C', cn: "记录统计数据", en: "Compute statistical data" },
+            { id: 60, type: 'C', cn: "分发邮件", en: "Route and distribute mail" }
+        ];
+
+        const CHINA_QUESTIONS = [
+            { id: 1, type: 'R', cn: "修理各种收音机或电视机", en: "Repair radio/TV" },
+            { id: 2, type: 'R', cn: "修理自行车", en: "Repair bicycles" },
+            { id: 3, type: 'R', cn: "在车床或木工机床上加工零件", en: "Process parts on lathe" },
+            { id: 4, type: 'R', cn: "给木质家具上漆或打蜡", en: "Varnish or wax furniture" },
+            { id: 5, type: 'R', cn: "种植蔬菜、农作物", en: "Plant vegetables/crops" },
+            { id: 6, type: 'R', cn: "操作农业机械、拖拉机", en: "Operate farm machinery" },
+            { id: 7, type: 'R', cn: "在电厂或自来水厂工作", en: "Work at power/water plant" },
+            { id: 8, type: 'R', cn: "安装家庭照明线路", en: "Install home lighting circuits" },
+            { id: 9, type: 'R', cn: "修理故障水管", en: "Fix faulty water pipes" },
+            { id: 10, type: 'R', cn: "进行房屋室内装修", en: "Interior renovation" },
+            { id: 11, type: 'I', cn: "阅读科学杂志文章", en: "Read scientific articles" },
+            { id: 12, type: 'I', cn: "在实验室里做实验", en: "Do experiments in lab" },
+            { id: 13, type: 'I', cn: "解几何题", en: "Solve geometry problems" },
+            { id: 14, type: 'I', cn: "了解人体的生理解剖结构", en: "Understand human anatomy" },
+            { id: 15, type: 'I', cn: "去气象站观察气象变化", en: "Observe weather changes" },
+            { id: 16, type: 'I', cn: "通过观察显微镜下的细胞", en: "Observe cells under microscope" },
+            { id: 17, type: 'I', cn: "研究动植物的生长规律", en: "Study growth patterns" },
+            { id: 18, type: 'I', cn: "调查导致环境污染的原因", en: "Investigate pollution causes" },
+            { id: 19, type: 'I', cn: "拆卸并重新组装旧表", en: "Disassemble/reassemble watches" },
+            { id: 20, type: 'I', cn: "对新发现的现象提出假设", en: "Propose scientific hypotheses" },
+            { id: 21, type: 'A', cn: "为报刊画插图或进行装帧设计", en: "Design magazine illustrations" },
+            { id: 22, type: 'A', cn: "创作歌曲或进行舞蹈编导", en: "Compose music/choreography" },
+            { id: 23, type: 'A', cn: "表演乐器或歌唱", en: "Perform music/singing" },
+            { id: 24, type: 'A', cn: "写诗歌或科幻小说", en: "Write poems or sci-fi" },
+            { id: 25, type: 'A', cn: "练习书法或篆刻", en: "Practice calligraphy/engraving" },
+            { id: 26, type: 'A', cn: "作为专业摄影师摄影", en: "Work as photographer" },
+            { id: 27, type: 'A', cn: "参加话剧或小品表演", en: "Act in plays" },
+            { id: 28, type: 'A', cn: "设计新颖的服装或工艺品", en: "Design fashion/crafts" },
+            { id: 29, type: 'A', cn: "去美术馆欣赏名画", en: "Visit art galleries" },
+            { id: 30, type: 'A', cn: "制作陶瓷或雕塑", en: "Make pottery/sculptures" },
+            { id: 31, type: 'S', cn: "在敬老院里照顾孤寡老人", en: "Care for the elderly" },
+            { id: 32, type: 'S', cn: "教导残疾儿童读书识字", en: "Teach disabled children" },
+            { id: 33, type: 'S', cn: "调解邻里间的矛盾冲突", en: "Mediate neighborhood conflicts" },
+            { id: 34, type: 'S', cn: "作为志愿者参加社区服务", en: "Volunteer for community service" },
+            { id: 35, type: 'S', cn: "为有困难的人提供法律咨询", en: "Provide legal consultation" },
+            { id: 36, type: 'S', cn: "教授学生体育锻炼技巧", en: "Teach PE skills" },
+            { id: 37, type: 'S', cn: "去医院探望并安慰病人", en: "Visit and comfort patients" },
+            { id: 38, type: 'S', cn: "进行心理健康咨询", en: "Mental health counseling" },
+            { id: 39, type: 'S', cn: "组织青少年夏令营活动", en: "Organize summer camps" },
+            { id: 40, type: 'S', cn: "协助人们纠正不良习惯", en: "Help correct bad habits" },
+            { id: 41, type: 'E', cn: "向别人推销新产品", en: "Sell new products" },
+            { id: 42, type: 'E', cn: "在班级里担任班长职务", en: "Serve as class monitor" },
+            { id: 43, type: 'E', cn: "组织一场大型的促销集会", en: "Organize sales rallies" },
+            { id: 44, type: 'E', cn: "管理一家商店或连锁餐厅", en: "Manage store/restaurant" },
+            { id: 45, type: 'E', cn: "说服他人改变观点", en: "Persuade others' opinions" },
+            { id: 46, type: 'E', cn: "参加公共辩论赛", en: "Participate in debates" },
+            { id: 47, type: 'E', cn: "竞选政府职位或领导岗", en: "Run for leadership/office" },
+            { id: 48, type: 'E', cn: "策划并实施一个商业方案", en: "Plan/execute business plan" },
+            { id: 49, type: 'E', cn: "代表集体利益向上级争取", en: "Advocate for group interests" },
+            { id: 50, type: 'E', cn: "负责管理一项投资项目", en: "Manage investment project" },
+            { id: 51, type: 'C', cn: "整理财务档案并归类", en: "Organize financial files" },
+            { id: 52, type: 'C', cn: "核对发票上的各项数字", en: "Verify invoice figures" },
+            { id: 53, type: 'C', cn: "在银行柜台处理储蓄业务", en: "Process banking business" },
+            { id: 54, type: 'C', cn: "记录单位每天的考勤情况", en: "Record daily attendance" },
+            { id: 55, type: 'C', cn: "撰写标准化的公文或报告", en: "Write official documents" },
+            { id: 56, type: 'C', cn: "进行人口普查的数据录入", en: "Input census data" },
+            { id: 57, type: 'C', cn: "维护一套高效的资料系统", en: "Maintain data systems" },
+            { id: 58, type: 'C', cn: "检查合同中的文字错误", en: "Check contract typos" },
+            { id: 59, type: 'C', cn: "计算复杂的财务报表", en: "Calculate financial reports" },
+            { id: 60, type: 'C', cn: "分门别类投递信件", en: "Sort and deliver mail" }
+        ];
+
+        // 2. 录取分数线走势组件 (使用 Recharts)
+        const TrendChart = ({ data, color }) => {
+            const { LineChart, Line, CartesianGrid, Tooltip, ResponsiveContainer } = window.Recharts;
+            return (
+                <div className="h-32 w-full mt-4">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={data}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <Tooltip contentStyle={{fontSize: '10px', borderRadius: '8px'}} />
+                            <Line type="monotone" dataKey="v" stroke={color} strokeWidth={3} dot={{r:4}} />
+                        </LineChart>
+                    </ResponsiveContainer>
+                    <div className="text-[8px] text-center text-slate-400 font-bold tracking-widest mt-1 uppercase">录取分线 5-Year Trend (540-640)</div>
+                </div>
+            );
+        };
+
+        function App() {
+            const [step, setStep] = useState('home');
+            const [mode, setMode] = useState('CN'); 
+            const [currentIndex, setCurrentIndex] = useState(0);
+            const [answers, setAnswers] = useState(new Array(60).fill(null));
+
+            const activeQuestions = useMemo(() => {
+                return mode === 'CN' ? CHINA_QUESTIONS : US_QUESTIONS;
+            }, [mode]);
+
+            const scores = useMemo(() => {
+                const s = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
+                answers.forEach((v, i) => { if (v !== null) s[activeQuestions[i].type] += v; });
+                return s;
+            }, [answers, activeQuestions]);
+
+            const topThree = useMemo(() => {
+                return Object.entries(scores).sort((a, b) => b[1] - a[1]).slice(0, 3);
+            }, [scores]);
+
+            const handleAnswer = (val) => {
+                const newA = [...answers];
+                newA[currentIndex] = val;
+                setAnswers(newA);
+                if (currentIndex < 59) setCurrentIndex(currentIndex + 1);
+                else setStep('result');
+            };
+
+            const startTest = (m) => {
+                setMode(m);
+                setAnswers(new Array(60).fill(null));
+                setCurrentIndex(0);
+                setStep('test');
+            };
+
+            if (step === 'home') return (
+                <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
+                    <div className="max-w-2xl w-full text-center">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-xs font-black mb-8 uppercase tracking-widest">
+                            <Icons.Zap /> HOLLAND ASSESSMENT SYSTEM v3.0
+                        </div>
+                        <h1 className="text-5xl sm:text-6xl font-black text-slate-900 mb-8 tracking-tighter">霍兰德职业兴趣</h1>
+                        <p className="text-slate-500 mb-12 text-lg leading-relaxed">基于 R-I-A-S-E-C 理论，提供中国本土与美国官方双版本题库，<br/>精准定位你的核心竞争优势。</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <button onClick={() => startTest('CN')} className="group p-8 bg-white border-2 border-slate-200 rounded-[2rem] hover:border-blue-500 transition-all flex flex-col items-center gap-4 shadow-sm hover:shadow-xl">
+                                <Icons.MapPin className="text-red-500 group-hover:scale-110 transition-transform" />
+                                <div className="text-left">
+                                    <span className="block text-xl font-black text-slate-900">中国本土版</span>
+                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">CHSI Standard</span>
+                                </div>
+                            </button>
+                            <button onClick={() => startTest('US')} className="group p-8 bg-white border-2 border-slate-200 rounded-[2rem] hover:border-blue-500 transition-all flex flex-col items-center gap-4 shadow-sm hover:shadow-xl">
+                                <Icons.Globe className="text-blue-500 group-hover:scale-110 transition-transform" />
+                                <div className="text-left">
+                                    <span className="block text-xl font-black text-slate-900">美国劳工局版</span>
+                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">O*NET Standard</span>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            if (step === 'test') {
+                const q = activeQuestions[currentIndex];
+                const progress = ((currentIndex + 1) / 60) * 100;
+                return (
+                    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-between p-8">
+                        <div className="w-full max-w-2xl mt-8">
+                            <div className="flex justify-between text-[10px] font-black text-slate-400 mb-4 tracking-widest uppercase">
+                                <span>Question {currentIndex + 1} / 60</span>
+                                <span>{mode === 'CN' ? '中国版' : 'US Edition'} · {DIMENSIONS[q.type].name}</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                                <div className="h-full bg-blue-600 transition-all duration-300" style={{ width: `${progress}%` }}></div>
+                            </div>
+                        </div>
+
+                        <div className="w-full max-w-2xl bg-white p-12 sm:p-20 rounded-[3rem] border border-slate-100 shadow-sm text-center">
+                            <p className="text-sm font-bold text-slate-300 mb-4 uppercase tracking-tighter italic">{q.en}</p>
+                            <h2 className="text-3xl sm:text-4xl font-black text-slate-900 mb-16 leading-tight">
+                                {q.cn}
+                            </h2>
+                            <div className="space-y-3">
+                                {[
+                                    { l: "非常喜歡", s: 4, c: "hover:bg-green-50 text-green-700 border-green-100" },
+                                    { l: "喜歡", s: 3, c: "hover:bg-blue-50 text-blue-700 border-blue-100" },
+                                    { l: "無感", s: 2, c: "hover:bg-slate-50 text-slate-600 border-slate-100" },
+                                    { l: "不喜歡", s: 1, c: "hover:bg-orange-50 text-orange-700 border-orange-100" },
+                                    { l: "非常不喜歡", s: 0, c: "hover:bg-red-50 text-red-700 border-red-100" }
+                                ].map(opt => (
+                                    <button key={opt.s} onClick={() => handleAnswer(opt.s)} 
+                                        className={`w-full py-4 px-8 text-left rounded-2xl border font-bold transition-all flex justify-between items-center group ${opt.c}`}>
+                                        {opt.l} <Icons.ChevronRight />
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="w-full max-w-2xl mb-8 flex justify-between">
+                            <button onClick={() => currentIndex > 0 && setCurrentIndex(currentIndex - 1)} className={`flex items-center gap-2 text-sm font-bold ${currentIndex === 0 ? 'opacity-0' : 'text-slate-400 hover:text-slate-900'}`}>
+                                <Icons.ChevronLeft /> 上一步
+                            </button>
+                            <button onClick={() => setStep('home')} className="text-[10px] font-black text-slate-300 tracking-widest uppercase hover:text-red-500">退出测试</button>
+                        </div>
+                    </div>
+                );
+            }
+
+            const radarData = Object.keys(DIMENSIONS).map(k => ({ subject: k, A: scores[k] }));
+
+            return (
+                <div className="max-w-6xl mx-auto p-6 sm:p-12 animate-in fade-in duration-1000">
+                    <header className="mb-16 pb-8 border-b border-slate-100 flex flex-col md:flex-row justify-between items-end gap-6">
+                        <div>
+                            <div className="text-[10px] font-black text-blue-600 mb-2 uppercase tracking-[0.4em]">Holland Analysis ({mode})</div>
+                            <h1 className="text-6xl font-black text-slate-900 tracking-tighter">
+                                职业代码: <span className="text-blue-600">{topThree.map(t => t[0]).join('')}</span>
+                            </h1>
+                        </div>
+                        <div className="flex gap-2">
+                            {topThree.map(([type]) => (
+                                <span key={type} className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-black shadow-lg">
+                                    {DIMENSIONS[type].name}
+                                </span>
+                            ))}
+                        </div>
+                    </header>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start mb-20">
+                        <div className="lg:col-span-5 flex flex-col items-center bg-white p-10 rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50">
+                            <h3 className="font-black text-slate-400 text-[10px] uppercase tracking-widest mb-8 italic">兴趣雷达图</h3>
+                            <div className="w-full h-[350px]">
+                                {Radar && (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <RadarChart data={radarData}>
+                                            <PolarGrid stroke="#e2e8f0" />
+                                            <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 14, fontWeight: 900 }} />
+                                            <Radar name="Score" dataKey="A" stroke="#2563eb" fill="#3b82f6" fillOpacity={0.4} />
+                                        </RadarChart>
+                                    </ResponsiveContainer>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="lg:col-span-7 space-y-8">
+                            <h3 className="font-black text-slate-400 text-[10px] uppercase tracking-widest italic">核心维度解析</h3>
+                            {topThree.map(([type, score]) => (
+                                <div key={type} className="group p-10 bg-white border border-slate-100 rounded-[2.5rem] hover:shadow-2xl hover:shadow-slate-200/60 transition-all duration-500">
+                                    <div className="flex justify-between items-start mb-8">
+                                        <div className="flex items-center gap-5">
+                                            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-lg" style={{ background: DIMENSIONS[type].color }}>{type}</div>
+                                            <div>
+                                                <h4 className="text-2xl font-black text-slate-900">{DIMENSIONS[type].name}</h4>
+                                                <p className="text-xs text-slate-400 font-bold uppercase tracking-tight">{DIMENSIONS[type].en} / {score}分</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p className="text-slate-600 leading-relaxed mb-10 text-lg">{DIMENSIONS[type].analysis}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-12">
+                        {topThree.map(([type]) => (
+                            <div key={type} className="flex flex-col p-8 border border-slate-100 rounded-[2.5rem] bg-white shadow-sm hover:shadow-2xl transition-all">
+                                {/* 头部信息 */}
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black" style={{background: DIMENSIONS[type].color}}>{type}</div>
+                                    <h4 className="text-xl font-black text-slate-900">{DIMENSIONS[type].name}型</h4>
+                                </div>
+
+                                {/* 分数走势图 */}
+                                <TrendChart data={DIMENSIONS[type].trends} color={DIMENSIONS[type].color} />
+
+                                {/* 职业推荐列表 */}
+                                <div className="space-y-4 my-8 flex-grow">
+                                    {DIMENSIONS[type].careers.map(job => (
+                                        <div key={job.n} className={`p-4 rounded-2xl border ${job.niche ? 'bg-indigo-50/50 border-indigo-100' : 'bg-slate-50/50 border-slate-100'}`}>
+                                            <div className="flex justify-between items-start mb-1">
+                                                <span className="font-bold text-slate-900 text-sm flex items-center gap-1">
+                                                    {job.n} {job.niche && <span className="text-[8px] bg-indigo-500 text-white px-1 rounded">潜力冷门</span>}
+                                                </span>
+                                                <span className="text-xs font-black text-blue-600 italic">{job.s}</span>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-y-1 text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
+                                                <span>🎓 目标：{job.score} 分段</span>
+                                                <span>🚻 性别：{job.sex}</span>
+                                                <span>⏳ 黄金期：{job.age}岁</span>
+                                                <span>🔗 <a href={DIMENSIONS[type].boss} target="_blank" className="text-blue-500 underline">实时岗位查詢</a></span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* 联网跳转按钮 */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <a href={DIMENSIONS[type].chsi} target="_blank" className="flex flex-col items-center justify-center p-3 bg-slate-900 text-white rounded-2xl hover:bg-blue-600 transition-all group">
+                                        <Icons.GraduationCap />
+                                        <span className="text-[10px] font-black mt-1">学信网专业库</span>
+                                    </a>
+                                    <a href={DIMENSIONS[type].boss} target="_blank" className="flex flex-col items-center justify-center p-3 border-2 border-slate-900 text-slate-900 rounded-2xl hover:bg-slate-900 hover:text-white transition-all">
+                                        <Icons.Briefcase />
+                                        <span className="text-[10px] font-black mt-1">BOSS 直聘行情</span>
+                                    </a>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <footer className="mt-24 py-12 border-t border-slate-100 text-center flex flex-col items-center gap-6">
+                        <button onClick={() => setStep('home')} className="px-8 py-3 border-2 border-slate-200 rounded-2xl text-xs font-black text-slate-400 hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-all uppercase tracking-widest">
+                            重新开始测评
+                        </button>
+                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em]">Holland Career Finder &copy; 2025 v3.0 Full Edition</p>
+                    </footer>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
