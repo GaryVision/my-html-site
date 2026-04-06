@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>霍兰德职业兴趣测试 v3.0</title>
+    <title>霍兰德职业兴趣测试 By a Student</title>
     <!-- 1. React 核心 -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -22,15 +22,25 @@
 </head>
 <body>
     <div id="root"></div>
+    
+    <div id="loading" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;font-family:sans-serif;">
+        <h2>正在加载资源...</h2>
+        <p>如果长时间未加载，请检查网络连接</p>
+    </div>
 
     <script type="text/babel">
+        // 隐藏加载提示
+        const loadingEl = document.getElementById('loading');
+        if (loadingEl) loadingEl.style.display = 'none';
+        
         const { useState, useMemo } = React;
 
         // 安全获取 Recharts 组件
         const RechartsObj = window.Recharts || {};
-        const { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } = RechartsObj;
+        const { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, 
+                LineChart, Line, CartesianGrid, Tooltip } = RechartsObj;
 
-        // 1. 定義圖標與增強版分析數據
+        // 1. 定义图标与增强版分析数据
         const Icons = {
             Briefcase: ({ size=16 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>,
             GraduationCap: ({ size=16 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>,
@@ -43,88 +53,76 @@
 
         // 1. 增强版维度数据库 (含 540-640 梯度、5 项推荐、冷门专业)
         const DIMENSIONS = {
-            R: { 
-                name: "现实型", color: "#ef4444", 
+            R: {
+                name: "现实型", color: "#ef4444",
                 analysis: "实干家。偏好工具操作。在当前'新质生产力'背景下，技术溢价极高。",
                 careers: [
-                    { n: "低空经济无人机运维", s: "18-35W", sex: "男 85%", age: "22-35", score: "620(北航/西工大)", niche: false },
-                    { n: "新能源三电系统研发", s: "20-45W", sex: "男 70%", age: "25-40", score: "600(华南理工)", niche: false },
-                    { n: "智能制造控制工程", s: "12-25W", sex: "男 80%", age: "23-45", score: "580(广东工业)", niche: false },
-                    { n: "工业机器人集成", s: "10-20W", sex: "男 90%", age: "22-50", score: "560(深圳职院)", niche: false },
-                    { n: "现代农业装备工程", s: "15-30W", sex: "均衡", age: "25-45", score: "540(华中农大)", niche: true }
+                    { n: "低空经济无人机运维", s: "18-35W", sex: "男 85%", age: "22-35", score: "620(北航/西工大)", niche: false, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=无人机应用技术", boss: "https://www.zhipin.com/web/geek/job?query=无人机运维" },
+                    { n: "新能源三电系统研发", s: "20-45W", sex: "男 70%", age: "25-40", score: "600(华南理工)", niche: false, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=新能源科学与工程", boss: "https://www.zhipin.com/web/geek/job?query=三电系统研发" },
+                    { n: "智能制造控制工程", s: "12-25W", sex: "男 80%", age: "23-45", score: "580(广东工业)", niche: false, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=智能制造工程", boss: "https://www.zhipin.com/web/geek/job?query=智能制造工程师" },
+                    { n: "工业机器人集成", s: "10-20W", sex: "男 90%", age: "22-50", score: "560(深圳职院)", niche: false, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=工业机器人技术", boss: "https://www.zhipin.com/web/geek/job?query=机器人集成工程师" },
+                    { n: "现代农业装备工程", s: "15-30W", sex: "均衡", age: "25-45", score: "540(华中农大)", niche: true, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=农业机械化及其自动化", boss: "https://www.zhipin.com/web/geek/job?query=农业装备工程师" }
                 ],
-                chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=智能制造工程",
-                boss: "https://www.zhipin.com/web/geek/job?query=机器人运维",
                 trends: [ {y:'2021',v:565}, {y:'2022',v:578}, {y:'2023',v:585}, {y:'2024',v:592}, {y:'2025',v:605} ]
             },
-            I: { 
+            I: {
                 name: "研究型", color: "#3b82f6",
                 analysis: "思想家。在半导体、生物制药等'卡脖子'领域拥有极高门槛和长期回报。",
                 careers: [
-                    { n: "AI 算力架构师", s: "40-100W", sex: "男 75%", age: "25-35", score: "640(清华/哈工大)", niche: false },
-                    { n: "半导体工艺工程师", s: "25-50W", sex: "男 80%", age: "26-45", score: "620(成电/西电)", niche: false },
-                    { n: "生物信息分析师", s: "20-45W", sex: "均衡", age: "24-40", score: "600(中山大学)", niche: true },
-                    { n: "量子信息研究员", s: "35-80W", sex: "男 70%", age: "28-50", score: "580(南科大)", niche: true },
-                    { n: "新材料模拟计算", s: "15-30W", sex: "均衡", age: "25-45", score: "540(深大/中南)", niche: false }
+                    { n: "AI 算力架构师", s: "40-100W", sex: "男 75%", age: "25-35", score: "640(清华/哈工大)", niche: false, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=人工智能", boss: "https://www.zhipin.com/web/geek/job?query=AI架构师" },
+                    { n: "半导体工艺工程师", s: "25-50W", sex: "男 80%", age: "26-45", score: "620(成电/西电)", niche: false, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=微电子科学与工程", boss: "https://www.zhipin.com/web/geek/job?query=半导体工艺工程师" },
+                    { n: "生物信息分析师", s: "20-45W", sex: "均衡", age: "24-40", score: "600(中山大学)", niche: true, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=生物信息学", boss: "https://www.zhipin.com/web/geek/job?query=生物信息分析师" },
+                    { n: "量子信息研究员", s: "35-80W", sex: "男 70%", age: "28-50", score: "580(南科大)", niche: true, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=量子信息科学", boss: "https://www.zhipin.com/web/geek/job?query=量子信息研究" },
+                    { n: "新材料模拟计算", s: "15-30W", sex: "均衡", age: "25-45", score: "540(深大/中南)", niche: false, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=材料科学与工程", boss: "https://www.zhipin.com/web/geek/job?query=材料计算工程师" }
                 ],
-                chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=人工智能",
-                boss: "https://www.zhipin.com/web/geek/job?query=算法工程师",
                 trends: [ {y:'2021',v:590}, {y:'2022',v:605}, {y:'2023',v:620}, {y:'2024',v:635}, {y:'2025',v:645} ]
             },
-            A: { 
+            A: {
                 name: "艺术型", color: "#f59e0b",
                 analysis: "创造者。在 AIGC 浪潮下，具备技术落地能力的创意人才稀缺度倍增。",
                 careers: [
-                    { n: "AIGC 数字艺术总监", s: "35-70W", sex: "均衡", age: "24-38", score: "610(中传/国美)", niche: false },
-                    { n: "游戏技术美术 TA", s: "30-80W", sex: "男 60%", age: "23-40", score: "590(中传/北影)", niche: false },
-                    { n: "元宇宙场景设计师", s: "20-45W", sex: "均衡", age: "22-35", score: "570(江南大学)", niche: true },
-                    { n: "非遗数字化保护", s: "12-25W", sex: "女 65%", age: "25-50", score: "550(南艺/山艺)", niche: true },
-                    { n: "品牌视觉策展人", s: "15-35W", sex: "女 70%", age: "24-45", score: "540(广美/川美)", niche: false }
+                    { n: "AIGC 数字艺术总监", s: "35-70W", sex: "均衡", age: "24-38", score: "610(中传/国美)", niche: false, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=数字媒体艺术", boss: "https://www.zhipin.com/web/geek/job?query=AIGC数字艺术" },
+                    { n: "游戏技术美术 TA", s: "30-80W", sex: "男 60%", age: "23-40", score: "590(中传/北影)", niche: false, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=游戏设计", boss: "https://www.zhipin.com/web/geek/job?query=技术美术TA" },
+                    { n: "元宇宙场景设计师", s: "20-45W", sex: "均衡", age: "22-35", score: "570(江南大学)", niche: true, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=虚拟现实技术", boss: "https://www.zhipin.com/web/geek/job?query=元宇宙设计" },
+                    { n: "非遗数字化保护", s: "12-25W", sex: "女 65%", age: "25-50", score: "550(南艺/山艺)", niche: true, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=文化遗产保护", boss: "https://www.zhipin.com/web/geek/job?query=数字化保护" },
+                    { n: "品牌视觉策展人", s: "15-35W", sex: "女 70%", age: "24-45", score: "540(广美/川美)", niche: false, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=视觉传达设计", boss: "https://www.zhipin.com/web/geek/job?query=品牌视觉设计" }
                 ],
-                chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=数字媒体艺术",
-                boss: "https://www.zhipin.com/web/geek/job?query=游戏美术",
                 trends: [ {y:'2021',v:540}, {y:'2022',v:552}, {y:'2023',v:568}, {y:'2024',v:580}, {y:'2025',v:595} ]
             },
-            S: { 
+            S: {
                 name: "社会型", color: "#10b981",
                 analysis: "助人者。心理健康与老龄化需求爆发，专业服务人才缺口持续扩大。",
                 careers: [
-                    { n: "临床心理治疗师", s: "25-60W", sex: "女 65%", age: "28-50", score: "620(北大医学/北师大)", niche: false },
-                    { n: "康复医学专家", s: "20-45W", sex: "均衡", age: "26-55", score: "600(中山医/华西)", niche: false },
-                    { n: "特需教育规划师", s: "15-35W", sex: "女 80%", age: "24-45", score: "580(华东师大)", niche: true },
-                    { n: "银发经济顾问", s: "12-28W", sex: "均衡", age: "25-50", score: "560(首医大)", niche: true },
-                    { n: "企业 EAP 咨询师", s: "18-40W", sex: "女 70%", age: "26-45", score: "540(华中师大)", niche: false }
+                    { n: "临床心理治疗师", s: "25-60W", sex: "女 65%", age: "28-50", score: "620(北大医学/北师大)", niche: false, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=应用心理学", boss: "https://www.zhipin.com/web/geek/job?query=心理治疗师" },
+                    { n: "康复医学专家", s: "20-45W", sex: "均衡", age: "26-55", score: "600(中山医/华西)", niche: false, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=康复治疗学", boss: "https://www.zhipin.com/web/geek/job?query=康复医学" },
+                    { n: "特需教育规划师", s: "15-35W", sex: "女 80%", age: "24-45", score: "580(华东师大)", niche: true, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=特殊教育", boss: "https://www.zhipin.com/web/geek/job?query=特殊教育规划" },
+                    { n: "银发经济顾问", s: "12-28W", sex: "均衡", age: "25-50", score: "560(首医大)", niche: true, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=老年学", boss: "https://www.zhipin.com/web/geek/job?query=银发经济" },
+                    { n: "企业 EAP 咨询师", s: "18-40W", sex: "女 70%", age: "26-45", score: "540(华中师大)", niche: false, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=心理咨询", boss: "https://www.zhipin.com/web/geek/job?query=EAP咨询师" }
                 ],
-                chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=康复治疗学",
-                boss: "https://www.zhipin.com/web/geek/job?query=心理咨询师",
                 trends: [ {y:'2021',v:555}, {y:'2022',v:565}, {y:'2023',v:578}, {y:'2024',v:590}, {y:'2025',v:605} ]
             },
-            E: { 
+            E: {
                 name: "企业型", color: "#f97316",
                 analysis: "领导者。跨境电商与数字化转型催生大量复合型管理岗位。",
                 careers: [
-                    { n: "跨境业务总经理", s: "50-200W+", sex: "均衡", age: "28-45", score: "630(清北/中欧)", niche: false },
-                    { n: "数字化转型顾问", s: "30-70W", sex: "均衡", age: "26-42", score: "610(复旦/交大)", niche: false },
-                    { n: "ESG 战略总监", s: "35-80W", sex: "女 55%", age: "28-48", score: "590(人大/央财)", niche: true },
-                    { n: "直播电商运营官", s: "20-50W", sex: "女 60%", age: "23-38", score: "570(浙传/深大)", niche: false },
-                    { n: "县域经济招商", s: "15-30W", sex: "均衡", age: "25-50", score: "540(中南财大)", niche: true }
+                    { n: "跨境业务总经理", s: "50-200W+", sex: "均衡", age: "28-45", score: "630(清北/中欧)", niche: false, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=跨境电子商务", boss: "https://www.zhipin.com/web/geek/job?query=跨境电商总经理" },
+                    { n: "数字化转型顾问", s: "30-70W", sex: "均衡", age: "26-42", score: "610(复旦/交大)", niche: false, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=工商管理", boss: "https://www.zhipin.com/web/geek/job?query=数字化转型顾问" },
+                    { n: "ESG 战略总监", s: "35-80W", sex: "女 55%", age: "28-48", score: "590(人大/央财)", niche: true, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=可持续发展", boss: "https://www.zhipin.com/web/geek/job?query=ESG战略" },
+                    { n: "直播电商运营官", s: "20-50W", sex: "女 60%", age: "23-38", score: "570(浙传/深大)", niche: false, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=电子商务", boss: "https://www.zhipin.com/web/geek/job?query=直播电商运营" },
+                    { n: "县域经济招商", s: "15-30W", sex: "均衡", age: "25-50", score: "540(中南财大)", niche: true, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=区域经济学", boss: "https://www.zhipin.com/web/geek/job?query=招商引资" }
                 ],
-                chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=工商管理",
-                boss: "https://www.zhipin.com/web/geek/job?query=跨境电商",
                 trends: [ {y:'2021',v:575}, {y:'2022',v:588}, {y:'2023',v:602}, {y:'2024',v:615}, {y:'2025',v:628} ]
             },
-            C: { 
+            C: {
                 name: "常规型", color: "#8b5cf6",
                 analysis: "组织者。在合规趋严背景下，财税与数据管理人才价值凸显。",
                 careers: [
-                    { n: "IPO 合规审计官", s: "25-70W", sex: "均衡", age: "26-45", score: "610(两财一贸)", niche: false },
-                    { n: "税务筹划专家", s: "20-55W", sex: "均衡", age: "27-50", score: "590(中南财大)", niche: false },
-                    { n: "供应链精益管理", s: "15-35W", sex: "男 65%", age: "24-45", score: "570(北交大)", niche: false },
-                    { n: "数据治理分析师", s: "18-40W", sex: "均衡", age: "23-40", score: "560(电子科大)", niche: true },
-                    { n: "政务数据管理", s: "12-25W", sex: "均衡", age: "25-55", score: "540(华中师大)", niche: true }
+                    { n: "IPO 合规审计官", s: "25-70W", sex: "均衡", age: "26-45", score: "610(两财一贸)", niche: false, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=审计学", boss: "https://www.zhipin.com/web/geek/job?query=IPO合规审计" },
+                    { n: "税务筹划专家", s: "20-55W", sex: "均衡", age: "27-50", score: "590(中南财大)", niche: false, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=税务学", boss: "https://www.zhipin.com/web/geek/job?query=税务筹划" },
+                    { n: "供应链精益管理", s: "15-35W", sex: "男 65%", age: "24-45", score: "570(北交大)", niche: false, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=物流管理", boss: "https://www.zhipin.com/web/geek/job?query=供应链管理" },
+                    { n: "数据治理分析师", s: "18-40W", sex: "均衡", age: "23-40", score: "560(电子科大)", niche: true, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=数据科学与大数据技术", boss: "https://www.zhipin.com/web/geek/job?query=数据治理" },
+                    { n: "政务数据管理", s: "12-25W", sex: "均衡", age: "25-55", score: "540(华中师大)", niche: true, chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=公共事业管理", boss: "https://www.zhipin.com/web/geek/job?query=政务数据管理" }
                 ],
-                chsi: "https://gaokao.chsi.com.cn/zyk/pub/zybk/zymcdetail.action?zymc=审计学",
-                boss: "https://www.zhipin.com/web/geek/job?query=审计专员",
                 trends: [ {y:'2021',v:550}, {y:'2022',v:562}, {y:'2023',v:575}, {y:'2024',v:585}, {y:'2025',v:598} ]
             }
         };
@@ -257,7 +255,6 @@
 
         // 2. 录取分数线走势组件 (使用 Recharts)
         const TrendChart = ({ data, color }) => {
-            const { LineChart, Line, CartesianGrid, Tooltip, ResponsiveContainer } = window.Recharts;
             return (
                 <div className="h-32 w-full mt-4">
                     <ResponsiveContainer width="100%" height="100%">
@@ -310,7 +307,7 @@
             if (step === 'home') return (
                 <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
                     <div className="max-w-2xl w-full text-center">
-                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-xs font-black mb-8 uppercase tracking-widest">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-xs font-black mb-8 uppercase">
                             <Icons.Zap /> HOLLAND ASSESSMENT SYSTEM v3.0
                         </div>
                         <h1 className="text-5xl sm:text-6xl font-black text-slate-900 mb-8 tracking-tighter">霍兰德职业兴趣</h1>
@@ -343,7 +340,7 @@
                         <div className="w-full max-w-2xl mt-8">
                             <div className="flex justify-between text-[10px] font-black text-slate-400 mb-4 tracking-widest uppercase">
                                 <span>Question {currentIndex + 1} / 60</span>
-                                <span>{mode === 'CN' ? '中国版' : 'US Edition'} · {DIMENSIONS[q.type].name}</span>
+                                <span>{mode === 'CN' ? '中国版' : 'US Edition'} · {q.type}</span>
                             </div>
                             <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
                                 <div className="h-full bg-blue-600 transition-all duration-300" style={{ width: `${progress}%` }}></div>
@@ -357,11 +354,11 @@
                             </h2>
                             <div className="space-y-3">
                                 {[
-                                    { l: "非常喜歡", s: 4, c: "hover:bg-green-50 text-green-700 border-green-100" },
-                                    { l: "喜歡", s: 3, c: "hover:bg-blue-50 text-blue-700 border-blue-100" },
-                                    { l: "無感", s: 2, c: "hover:bg-slate-50 text-slate-600 border-slate-100" },
-                                    { l: "不喜歡", s: 1, c: "hover:bg-orange-50 text-orange-700 border-orange-100" },
-                                    { l: "非常不喜歡", s: 0, c: "hover:bg-red-50 text-red-700 border-red-100" }
+                                    { l: "非常喜欢", s: 4, c: "hover:bg-green-50 text-green-700 border-green-100" },
+                                    { l: "喜欢", s: 3, c: "hover:bg-blue-50 text-blue-700 border-blue-100" },
+                                    { l: "无感", s: 2, c: "hover:bg-slate-50 text-slate-600 border-slate-100" },
+                                    { l: "不喜欢", s: 1, c: "hover:bg-orange-50 text-orange-700 border-orange-100" },
+                                    { l: "非常不喜欢", s: 0, c: "hover:bg-red-50 text-red-700 border-red-100" }
                                 ].map(opt => (
                                     <button key={opt.s} onClick={() => handleAnswer(opt.s)} 
                                         className={`w-full py-4 px-8 text-left rounded-2xl border font-bold transition-all flex justify-between items-center group ${opt.c}`}>
@@ -410,6 +407,7 @@
                                         <RadarChart data={radarData}>
                                             <PolarGrid stroke="#e2e8f0" />
                                             <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 14, fontWeight: 900 }} />
+                                            <PolarRadiusAxis angle={30} domain={[0, 4]} tick={false} axisLine={false} />
                                             <Radar name="Score" dataKey="A" stroke="#2563eb" fill="#3b82f6" fillOpacity={0.4} />
                                         </RadarChart>
                                     </ResponsiveContainer>
@@ -426,7 +424,7 @@
                                             <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-lg" style={{ background: DIMENSIONS[type].color }}>{type}</div>
                                             <div>
                                                 <h4 className="text-2xl font-black text-slate-900">{DIMENSIONS[type].name}</h4>
-                                                <p className="text-xs text-slate-400 font-bold uppercase tracking-tight">{DIMENSIONS[type].en} / {score}分</p>
+                                                <p className="text-xs text-slate-400 font-bold uppercase tracking-tight">{type}-Type / {score} pts</p>
                                             </div>
                                         </div>
                                     </div>
@@ -458,26 +456,15 @@
                                                 </span>
                                                 <span className="text-xs font-black text-blue-600 italic">{job.s}</span>
                                             </div>
-                                            <div className="grid grid-cols-2 gap-y-1 text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
+                                            <div className="grid grid-cols-2 gap-y-1 text-[10px] text-slate-500 font-bold tracking-tighter">
                                                 <span>🎓 目标：{job.score} 分段</span>
                                                 <span>🚻 性别：{job.sex}</span>
                                                 <span>⏳ 黄金期：{job.age}岁</span>
-                                                <span>🔗 <a href={DIMENSIONS[type].boss} target="_blank" className="text-blue-500 underline">实时岗位查詢</a></span>
+                                                <span>🔗 <a href={job.chsi} target="_blank" className="text-blue-500 underline">学信网专业</a></span>
+                                                <span>🔗 <a href={job.boss} target="_blank" className="text-blue-500 underline col-span-2">BOSS直聘实时岗位</a></span>
                                             </div>
                                         </div>
                                     ))}
-                                </div>
-
-                                {/* 联网跳转按钮 */}
-                                <div className="grid grid-cols-2 gap-3">
-                                    <a href={DIMENSIONS[type].chsi} target="_blank" className="flex flex-col items-center justify-center p-3 bg-slate-900 text-white rounded-2xl hover:bg-blue-600 transition-all group">
-                                        <Icons.GraduationCap />
-                                        <span className="text-[10px] font-black mt-1">学信网专业库</span>
-                                    </a>
-                                    <a href={DIMENSIONS[type].boss} target="_blank" className="flex flex-col items-center justify-center p-3 border-2 border-slate-900 text-slate-900 rounded-2xl hover:bg-slate-900 hover:text-white transition-all">
-                                        <Icons.Briefcase />
-                                        <span className="text-[10px] font-black mt-1">BOSS 直聘行情</span>
-                                    </a>
                                 </div>
                             </div>
                         ))}
@@ -495,6 +482,20 @@
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
+    </script>
+    
+    <script>
+        // 检查关键库是否加载完成
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                if (typeof React === 'undefined') {
+                    document.getElementById('loading').innerHTML = '<h2 style="color:red;">错误: React 加载失败</h2><p>请检查网络连接并刷新页面</p>';
+                }
+                if (typeof window.Recharts === 'undefined') {
+                    console.warn('警告: Recharts 加载失败，图表功能将不可用');
+                }
+            }, 2000);
+        });
     </script>
 </body>
 </html>
